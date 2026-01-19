@@ -38,7 +38,7 @@
     "icon": "build/icon.ico"
   },
   "portable": {
-    "artifactName": "${productName}-Portable-${version}.${ext}"
+    "artifactName": "SSH.Helper.Portable.${version}.${ext}"
   },
   "linux": {
     "target": [

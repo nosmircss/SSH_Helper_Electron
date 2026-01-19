@@ -67,6 +67,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "SSH.Helper.Portable.${version}.${ext}"
     }
   },
   "dependencies": {

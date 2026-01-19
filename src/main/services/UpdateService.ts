@@ -172,10 +172,19 @@ export class UpdateService {
       log.info(`Portable update check: current=${currentVersion}, latest=${latestVersion}`);
 
       if (this.isNewerVersion(latestVersion, currentVersion)) {
-        // Find the portable exe in assets (matches SSH-Helper-Portable-x.x.x.exe)
-        const portableAsset = release.assets.find(asset =>
-          asset.name.match(/SSH-Helper-Portable-[\d.]+\.exe$/i)
-        );
+        // Find the portable exe in assets
+        // Matches: "SSH.Helper.Portable.x.x.x.exe" or "SSH.Helper.x.x.x.exe" (old)
+        // Excludes: Setup files
+        const portableAsset = release.assets.find(asset => {
+          const name = asset.name.toLowerCase();
+          if (!name.endsWith('.exe')) return false;
+          if (name.includes('setup')) return false;
+          // Match format with "Portable": SSH.Helper.Portable.x.x.x.exe
+          if (asset.name.match(/SSH[. ]Helper[. ]Portable[. ][\d.]+\.exe$/i)) return true;
+          // Match old format without "Portable": SSH.Helper.x.x.x.exe
+          if (asset.name.match(/SSH\.Helper\.[\d.]+\.exe$/i)) return true;
+          return false;
+        });
 
         if (portableAsset) {
           const info: UpdateInfo = {
@@ -295,9 +304,15 @@ export class UpdateService {
       throw new Error('No update info available. Please check for updates first.');
     }
 
-    const portableAsset = this.latestReleaseInfo.assets.find(asset =>
-      asset.name.match(/SSH-Helper-Portable-[\d.]+\.exe$/i)
-    );
+    // Find the portable exe in assets (same logic as checkForPortableUpdates)
+    const portableAsset = this.latestReleaseInfo.assets.find(asset => {
+      const name = asset.name.toLowerCase();
+      if (!name.endsWith('.exe')) return false;
+      if (name.includes('setup')) return false;
+      if (asset.name.match(/SSH[. ]Helper[. ]Portable[. ][\d.]+\.exe$/i)) return true;
+      if (asset.name.match(/SSH\.Helper\.[\d.]+\.exe$/i)) return true;
+      return false;
+    });
 
     if (!portableAsset) {
       throw new Error('Portable executable not found in release');
