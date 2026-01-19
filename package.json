@@ -33,20 +33,30 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Development"
     },
     "nsis": {
@@ -58,7 +68,9 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
+    "electron-log": "^5.4.3",
     "electron-store": "^6.0.1",
+    "electron-updater": "^6.7.3",
     "js-yaml": "^4.1.0",
     "lucide-react": "^0.294.0",
     "ssh2": "^1.15.0",

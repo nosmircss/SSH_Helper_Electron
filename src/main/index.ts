@@ -5,6 +5,8 @@ import { registerConfigHandlers } from './ipc/config.ipc';
 import { registerPresetHandlers } from './ipc/presets.ipc';
 import { registerCsvHandlers } from './ipc/csv.ipc';
 import { registerFileHandlers } from './ipc/file.ipc';
+import { registerUpdateHandlers } from './ipc/update.ipc';
+import { updateService } from './services/UpdateService';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -29,6 +31,8 @@ function createWindow(): void {
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
+    // Set window reference for update service
+    updateService.setMainWindow(mainWindow);
   });
 
   if (isDev) {
@@ -42,6 +46,7 @@ function createWindow(): void {
   }
 
   mainWindow.on('closed', () => {
+    updateService.setMainWindow(null);
     mainWindow = null;
   });
 }
@@ -53,6 +58,7 @@ function registerIpcHandlers(): void {
   registerPresetHandlers(ipcMain);
   registerCsvHandlers(ipcMain);
   registerFileHandlers(ipcMain);
+  registerUpdateHandlers();
 }
 
 // Create application menu

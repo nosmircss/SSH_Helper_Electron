@@ -8,6 +8,7 @@ import { OutputHistory } from './components/OutputHistory';
 import { SettingsDialog } from './components/SettingsDialog';
 import { AboutDialog } from './components/AboutDialog';
 import { MessageDialog, MessageType } from './components/MessageDialog';
+import { UpdateDialog } from './components/UpdateDialog';
 import { useAppStore } from './store/appStore';
 import type { OutputEntry } from '../shared/models';
 
@@ -21,6 +22,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [messageDialog, setMessageDialog] = useState<{ open: boolean; title: string; message: string; type: MessageType }>({
     open: false,
     title: '',
@@ -201,8 +203,7 @@ function App() {
 
     // Check for updates
     cleanupFns.push(window.api.menu.onCheckUpdates(() => {
-      // TODO: Implement update check
-      showMessage('Check for Updates', 'Update check not implemented yet', 'info');
+      setUpdateDialogOpen(true);
     }));
 
     // About
@@ -397,6 +398,9 @@ function App() {
 
       {/* About Dialog */}
       <AboutDialog isOpen={aboutOpen} onClose={() => setAboutOpen(false)} />
+
+      {/* Update Dialog */}
+      <UpdateDialog isOpen={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} />
 
       {/* Message Dialog */}
       <MessageDialog

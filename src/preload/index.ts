@@ -1,6 +1,27 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { HostConnection, PresetInfo, AppConfiguration, ExecutionResult } from '../shared/models';
 
+// Update status types
+export interface UpdateProgress {
+  bytesPerSecond: number;
+  percent: number;
+  transferred: number;
+  total: number;
+}
+
+export interface UpdateInfo {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string | { version: string; note: string }[];
+}
+
+export interface UpdateStatus {
+  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  info?: UpdateInfo;
+  progress?: UpdateProgress;
+  error?: string;
+}
+
 // Type-safe API exposed to renderer
 export interface ElectronAPI {
   ssh: {
@@ -39,6 +60,12 @@ export interface ElectronAPI {
   app: {
     getVersion: () => Promise<string>;
     getPlatform: () => string;
+  };
+  update: {
+    check: () => Promise<{ success: boolean; error?: string }>;
+    download: () => Promise<{ success: boolean; error?: string }>;
+    install: () => Promise<{ success: boolean; error?: string }>;
+    onStatus: (callback: (status: UpdateStatus) => void) => () => void;
   };
   file: {
     writeText: (filePath: string, content: string) => Promise<void>;
@@ -105,8 +132,18 @@ const api: ElectronAPI = {
     showSaveDialog: (defaultName) => ipcRenderer.invoke('csv:showSaveDialog', defaultName),
   },
   app: {
-    getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    getVersion: () => ipcRenderer.invoke('update:get-version'),
     getPlatform: () => process.platform,
+  },
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onStatus: (callback) => {
+      const handler = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status);
+      ipcRenderer.on('update-status', handler);
+      return () => ipcRenderer.removeListener('update-status', handler);
+    },
   },
   file: {
     writeText: (filePath, content) => ipcRenderer.invoke('file:writeText', filePath, content),

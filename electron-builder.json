@@ -10,6 +10,11 @@
     "dist/**/*",
     "package.json"
   ],
+  "publish": {
+    "provider": "github",
+    "owner": "nosmircss",
+    "repo": "ssh-helper-electron"
+  },
   "mac": {
     "target": [
       "dmg",
