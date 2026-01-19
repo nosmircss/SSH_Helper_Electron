@@ -1,4 +1,4 @@
-# SSH Helper (Electron)
+# SSH Helper (Electron port of https://github.com/nosmircss/SSH_Helper)
 
 Cross-platform SSH command execution tool built with Electron, React, and TypeScript.
 
