@@ -580,7 +580,7 @@ set "VBS_FILE=${vbsPath}"
 set "LOG_FILE=${logPath}"
 set "APP_PID=${currentPid}"
 
-echo [%date% %time%] Updater started >> "%LOG_FILE%"
+echo [%date% %time%] Updater started > "%LOG_FILE%"
 echo OLD_EXE: %OLD_EXE% >> "%LOG_FILE%"
 echo NEW_EXE: %NEW_EXE% >> "%LOG_FILE%"
 echo TARGET: %TARGET% >> "%LOG_FILE%"
