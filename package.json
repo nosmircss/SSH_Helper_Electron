@@ -3,7 +3,10 @@
   "version": "0.49.1",
   "description": "Cross-platform SSH command execution tool",
   "main": "dist/main/index.js",
-  "author": "nosmircss",
+  "author": {
+    "name": "nosmircss",
+    "email": "chris_dudek@nwcd.net"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
