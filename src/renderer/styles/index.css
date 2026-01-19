@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Resizable panels */
+.resize-handle {
+  @apply bg-gray-200 dark:bg-gray-700 hover:bg-primary-400 dark:hover:bg-primary-600 transition-colors;
+}
+
+.resize-handle-horizontal {
+  cursor: col-resize;
+  width: 4px;
+}
+
+.resize-handle-vertical {
+  cursor: row-resize;
+  height: 4px;
+}
+
+/* Status badges */
+.status-badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-idle {
+  @apply bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400;
+}
+
+.status-connecting {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.status-running {
+  @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300;
+}
+
+.status-success {
+  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+}
+
+.status-error {
+  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
+}
+
+/* Preset tree */
+.preset-item {
+  @apply flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+}
+
+.preset-item.selected {
+  @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300;
+}
+
+.preset-item.dragging {
+  @apply opacity-50;
+}
+
+.preset-drop-target {
+  @apply border-2 border-dashed border-primary-400;
+}
+
+/* Toolbar button */
+.toolbar-btn {
+  @apply inline-flex items-center justify-center p-2 rounded;
+  @apply text-gray-600 dark:text-gray-400;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary-500;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.toolbar-btn-primary {
+  @apply bg-primary-600 text-white;
+  @apply hover:bg-primary-700;
+}
+
+/* Data grid */
+.data-grid {
+  @apply w-full border-collapse;
+}
+
+.data-grid th,
+.data-grid td {
+  @apply border border-gray-200 dark:border-gray-700 px-3 py-2 text-left;
+}
+
+.data-grid th {
+  @apply bg-gray-50 dark:bg-gray-800 font-medium text-sm;
+}
+
+.data-grid tr:hover td {
+  @apply bg-gray-50 dark:bg-gray-800/50;
+}
+
+.data-grid tr.selected td {
+  @apply bg-primary-50 dark:bg-primary-900/30;
+}
+
+/* Monaco editor container */
+.editor-container {
+  @apply border border-gray-200 dark:border-gray-700 rounded overflow-hidden;
+}
+
+/* Terminal output */
+.terminal-output {
+  @apply font-mono text-sm bg-gray-900 text-gray-100 p-4 overflow-auto;
+}
+
+/* Animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
