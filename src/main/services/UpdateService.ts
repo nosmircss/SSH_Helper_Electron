@@ -592,8 +592,8 @@ timeout /t 1 /nobreak >nul
 tasklist /FI "PID eq %APP_PID%" 2>nul | find "%APP_PID%" >nul
 if %ERRORLEVEL%==0 goto waitloop
 
-echo [%date% %time%] Process exited, waiting 5 seconds for AV scanners... >> "%LOG_FILE%"
-timeout /t 5 /nobreak >nul
+echo [%date% %time%] Process exited, waiting 2 seconds for AV scanners... >> "%LOG_FILE%"
+timeout /t 2 /nobreak >nul
 
 echo [%date% %time%] Attempting to delete old exe... >> "%LOG_FILE%"
 del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
