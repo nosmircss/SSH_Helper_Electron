@@ -31,6 +31,7 @@ function App() {
   });
   const [historyOutput, setHistoryOutput] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<OutputEntry[] | null>(null);
+  const [appVersion, setAppVersion] = useState('');
   const prevSessionIdRef = useRef<string | null>(null);
 
   // Helper to show message dialog
@@ -82,6 +83,9 @@ function App() {
       try {
         await loadConfig();
         await loadPresets();
+
+        // Get app version
+        window.api.app.getVersion().then(setAppVersion).catch(() => {});
 
         // After loading, initialize historyOutput if there's a selected session
         const state = useAppStore.getState();
@@ -390,7 +394,7 @@ function App() {
       {/* Status bar */}
       <div className="flex items-center justify-between px-4 py-1 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-xs">
         <span className="text-gray-600 dark:text-gray-400">Ready</span>
-        <span className="text-gray-500 dark:text-gray-500">SSH Helper v1.0.0</span>
+        <span className="text-gray-500 dark:text-gray-500">SSH Helper v{appVersion}</span>
       </div>
 
       {/* Settings Dialog */}
