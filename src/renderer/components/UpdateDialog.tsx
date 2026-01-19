@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { UpdateStatus, UpdateInfo, UpdateProgress } from '../../preload/index';
 
 interface UpdateDialogProps {
@@ -6,12 +6,20 @@ interface UpdateDialogProps {
   onClose: () => void;
 }
 
+const GITHUB_REPO_URL = 'https://github.com/nosmircss/SSH_Helper_Electron';
+
 export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) => {
   const [status, setStatus] = useState<UpdateStatus['status']>('checking');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentVersion, setCurrentVersion] = useState<string>('');
+
+  // Resizable dialog state
+  const [dialogSize, setDialogSize] = useState({ width: 480, height: 400 });
+  const [isResizing, setIsResizing] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const startPosRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,6 +46,44 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     return cleanup;
   }, [isOpen]);
 
+  // Handle resize mouse events
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startPosRef.current.x;
+      const deltaY = e.clientY - startPosRef.current.y;
+
+      setDialogSize({
+        width: Math.max(400, Math.min(800, startPosRef.current.width + deltaX)),
+        height: Math.max(300, Math.min(700, startPosRef.current.height + deltaY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startPosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: dialogSize.width,
+      height: dialogSize.height
+    };
+  };
+
   const handleDownload = async () => {
     const result = await window.api.update.download();
     if (!result.success && result.error) {
@@ -50,6 +96,14 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     window.api.update.install();
   };
 
+  const openReleaseNotes = () => {
+    if (updateInfo?.version) {
+      window.open(`${GITHUB_REPO_URL}/releases/tag/v${updateInfo.version}`, '_blank');
+    } else {
+      window.open(`${GITHUB_REPO_URL}/releases`, '_blank');
+    }
+  };
+
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -58,24 +112,46 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const stripHtml = (html: string): string => {
+    // Remove HTML tags and decode common entities
+    return html
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\n\s*\n/g, '\n') // Remove multiple blank lines
+      .trim();
+  };
+
   const getReleaseNotes = (): string => {
     if (!updateInfo?.releaseNotes) return '';
     if (typeof updateInfo.releaseNotes === 'string') {
-      return updateInfo.releaseNotes;
+      return stripHtml(updateInfo.releaseNotes);
     }
-    return updateInfo.releaseNotes.map(n => `${n.version}: ${n.note}`).join('\n');
+    return updateInfo.releaseNotes.map(n => `${n.version}: ${stripHtml(n.note)}`).join('\n');
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[480px] max-h-[80vh] overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div
+        ref={dialogRef}
+        className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col relative"
+        style={{
+          width: dialogSize.width,
+          height: status === 'available' ? dialogSize.height : 'auto',
+          minHeight: 200
+        }}
+      >
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">Software Update</h2>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-auto">
           {status === 'checking' && (
             <div className="flex flex-col items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
@@ -94,8 +170,8 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
           )}
 
           {status === 'available' && updateInfo && (
-            <div className="space-y-4">
-              <div className="flex items-start space-x-4">
+            <div className="space-y-4 h-full flex flex-col">
+              <div className="flex items-start space-x-4 flex-shrink-0">
                 <div className="flex-shrink-0">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,12 +187,25 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
                 </div>
               </div>
 
-              {getReleaseNotes() && (
-                <div className="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Release Notes:</h4>
-                  <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans">{getReleaseNotes()}</pre>
+              <div className="bg-gray-50 rounded-lg p-4 flex-1 overflow-hidden flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                  <h4 className="text-sm font-medium text-gray-700">Release Notes:</h4>
+                  <button
+                    onClick={openReleaseNotes}
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                  >
+                    <span>View on GitHub</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </button>
                 </div>
-              )}
+                <div className="flex-1 overflow-y-auto">
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans">
+                    {getReleaseNotes() || 'No release notes available.'}
+                  </pre>
+                </div>
+              </div>
             </div>
           )}
 
@@ -159,12 +248,16 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-gray-900 font-medium">Update check failed</p>
-              <p className="text-gray-500 text-sm mt-1 text-center max-w-sm">{error || 'An unknown error occurred'}</p>
+              <div className="mt-2 w-full px-4">
+                <pre className="text-gray-500 text-xs text-left bg-gray-100 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                  {error || 'An unknown error occurred'}
+                </pre>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 flex-shrink-0">
           {status === 'available' && (
             <>
               <button
@@ -209,6 +302,18 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
             </button>
           )}
         </div>
+
+        {/* Resize handle - only show when update is available */}
+        {status === 'available' && (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+            onMouseDown={handleResizeStart}
+            style={{
+              background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)',
+              borderBottomRightRadius: '0.5rem'
+            }}
+          />
+        )}
       </div>
     </div>
   );

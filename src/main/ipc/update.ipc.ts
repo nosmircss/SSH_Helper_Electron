@@ -35,4 +35,8 @@ export function registerUpdateHandlers(): void {
   ipcMain.handle('update:get-version', () => {
     return updateService.getCurrentVersion();
   });
+
+  ipcMain.handle('update:is-portable', () => {
+    return updateService.getIsPortable();
+  });
 }

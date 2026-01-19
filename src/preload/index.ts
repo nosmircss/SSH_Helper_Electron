@@ -20,6 +20,7 @@ export interface UpdateStatus {
   info?: UpdateInfo;
   progress?: UpdateProgress;
   error?: string;
+  isPortable?: boolean;
 }
 
 // Type-safe API exposed to renderer
@@ -65,6 +66,7 @@ export interface ElectronAPI {
     check: () => Promise<{ success: boolean; error?: string }>;
     download: () => Promise<{ success: boolean; error?: string }>;
     install: () => Promise<{ success: boolean; error?: string }>;
+    isPortable: () => Promise<boolean>;
     onStatus: (callback: (status: UpdateStatus) => void) => () => void;
   };
   file: {
@@ -139,6 +141,7 @@ const api: ElectronAPI = {
     check: () => ipcRenderer.invoke('update:check'),
     download: () => ipcRenderer.invoke('update:download'),
     install: () => ipcRenderer.invoke('update:install'),
+    isPortable: () => ipcRenderer.invoke('update:is-portable'),
     onStatus: (callback) => {
       const handler = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status);
       ipcRenderer.on('update-status', handler);

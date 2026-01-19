@@ -13,7 +13,8 @@
   "publish": {
     "provider": "github",
     "owner": "nosmircss",
-    "repo": "ssh-helper-electron"
+    "repo": "SSH_Helper_Electron",
+    "releaseType": "release"
   },
   "mac": {
     "target": [
@@ -36,6 +37,9 @@
     ],
     "icon": "build/icon.ico"
   },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}.${ext}"
+  },
   "linux": {
     "target": [
       "AppImage",
@@ -47,6 +51,7 @@
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true
+    "createDesktopShortcut": true,
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   }
 }
