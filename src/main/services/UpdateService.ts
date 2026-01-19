@@ -462,13 +462,17 @@ export class UpdateService {
 
     // Create an updater batch script that:
     // 1. Waits for the current process to exit
-    // 2. Replaces the old exe with the new one
+    // 2. Deletes the old exe and copies new exe to same directory (with new version in filename)
     // 3. Starts the new exe
     // 4. Deletes itself
     const batchPath = path.join(app.getPath('temp'), 'ssh-helper-updater.bat');
     const oldExePath = this.portableExePath;
     const newExePath = this.downloadedUpdatePath;
-    const targetExePath = oldExePath; // Replace in same location
+    // Target is in the same directory as the old exe, but with the new exe's filename (includes new version)
+    const targetExePath = path.join(path.dirname(oldExePath), path.basename(newExePath));
+
+    // VBS path for cleanup in batch script
+    const vbsPath = path.join(app.getPath('temp'), 'ssh-helper-updater.vbs');
 
     const batchContent = `@echo off
 setlocal
@@ -476,33 +480,28 @@ setlocal
 set "OLD_EXE=${oldExePath.replace(/\\/g, '\\\\')}"
 set "NEW_EXE=${newExePath.replace(/\\/g, '\\\\')}"
 set "TARGET=${targetExePath.replace(/\\/g, '\\\\')}"
+set "VBS_FILE=${vbsPath.replace(/\\/g, '\\\\')}"
 
-echo Waiting for application to close...
 :waitloop
 timeout /t 1 /nobreak >nul
 tasklist /FI "IMAGENAME eq ${path.basename(oldExePath)}" 2>nul | find /I "${path.basename(oldExePath)}" >nul
 if not errorlevel 1 goto waitloop
 
-echo Replacing executable...
-del "%TARGET%" >nul 2>&1
-if exist "%TARGET%" (
-    echo Failed to delete old executable, retrying...
+del "%OLD_EXE%" >nul 2>&1
+if exist "%OLD_EXE%" (
     timeout /t 2 /nobreak >nul
-    del "%TARGET%" >nul 2>&1
+    del "%OLD_EXE%" >nul 2>&1
 )
 
 copy /Y "%NEW_EXE%" "%TARGET%" >nul
 if errorlevel 1 (
-    echo Failed to copy new executable
-    pause
     exit /b 1
 )
 
-echo Starting updated application...
 start "" "%TARGET%"
 
-echo Cleaning up...
 del "%NEW_EXE%" >nul 2>&1
+del "%VBS_FILE%" >nul 2>&1
 (goto) 2>nul & del "%~f0"
 `;
 
@@ -510,15 +509,22 @@ del "%NEW_EXE%" >nul 2>&1
       fs.writeFileSync(batchPath, batchContent, 'utf8');
       log.info('Created updater script:', batchPath);
 
-      // Start the batch script detached
-      const child = spawn('cmd.exe', ['/c', batchPath], {
+      // Start the batch script detached and hidden using wscript
+      // windowsHide doesn't work reliably with cmd.exe, so we use a VBScript wrapper
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """${batchPath.replace(/\\/g, '\\\\')}""", 0, False
+`;
+      fs.writeFileSync(vbsPath, vbsContent, 'utf8');
+      log.info('Created VBS launcher:', vbsPath);
+
+      const child = spawn('wscript.exe', [vbsPath], {
         detached: true,
         stdio: 'ignore',
         windowsHide: true
       });
       child.unref();
 
-      log.info('Updater script started, quitting application...');
+      log.info('Updater script started via VBS, quitting application...');
 
       // Quit the app to allow the updater to replace the exe
       app.quit();
