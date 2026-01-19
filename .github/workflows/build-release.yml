@@ -61,8 +61,7 @@ jobs:
           name: windows-build
           path: |
             release/*.exe
-            release/*.yml
-            release/*.yaml
+            release/latest.yml
           if-no-files-found: error
 
       - name: Upload macOS artifacts
@@ -73,8 +72,7 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
-            release/*.yml
-            release/*.yaml
+            release/latest-mac.yml
           if-no-files-found: error
 
       - name: Upload Linux artifacts
@@ -85,8 +83,7 @@ jobs:
           path: |
             release/*.AppImage
             release/*.deb
-            release/*.yml
-            release/*.yaml
+            release/latest-linux.yml
           if-no-files-found: error
 
   release:
@@ -115,8 +112,9 @@ jobs:
             release/**/*.zip
             release/**/*.AppImage
             release/**/*.deb
-            release/**/*.yml
-            release/**/*.yaml
+            release/**/latest.yml
+            release/**/latest-mac.yml
+            release/**/latest-linux.yml
           generate_release_notes: true
           draft: false
           prerelease: false
