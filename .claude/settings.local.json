@@ -11,7 +11,8 @@
       "Bash(powershell.exe -Command \"Get-Process | Where-Object { $_.Modules.FileName -like ''*ssh-helper*'' -or $_.Modules.FileName -like ''*app.asar*'' } | Select-Object Id, ProcessName\")",
       "Bash(powershell.exe -Command \"Get-Process | Where-Object { $_.Path -like ''*nos*source*repos*'' } | Select-Object Id, ProcessName, Path\")",
       "Bash(gh run view:*)",
-      "Bash(npm run build:renderer:*)"
+      "Bash(npm run build:renderer:*)",
+      "Bash(tasklist:*)"
     ]
   }
 }

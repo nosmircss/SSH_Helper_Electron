@@ -33,6 +33,13 @@ function createWindow(): void {
     mainWindow?.show();
     // Set window reference for update service
     updateService.setMainWindow(mainWindow);
+
+    // Check for updates on startup (after a short delay to let the app fully load)
+    setTimeout(() => {
+      updateService.checkForUpdatesOnStartup().catch((error) => {
+        console.error('Failed to check for updates on startup:', error);
+      });
+    }, 3000);
   });
 
   if (isDev) {

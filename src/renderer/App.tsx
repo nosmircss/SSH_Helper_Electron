@@ -107,6 +107,18 @@ function App() {
     init();
   }, [loadConfig, loadPresets]);
 
+  // Listen for update status from startup check
+  useEffect(() => {
+    const cleanup = window.api.update.onStatus((status) => {
+      // Only auto-open dialog if update is available (from startup check)
+      if (status.status === 'available' && !updateDialogOpen) {
+        setUpdateDialogOpen(true);
+      }
+    });
+
+    return cleanup;
+  }, [updateDialogOpen]);
+
   // Save state on window close
   useEffect(() => {
     const handleBeforeUnload = () => {

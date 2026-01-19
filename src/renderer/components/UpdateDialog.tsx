@@ -96,6 +96,13 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
     window.api.update.install();
   };
 
+  const handleSkipVersion = async () => {
+    if (updateInfo?.version) {
+      await window.api.update.skipVersion(updateInfo.version);
+      onClose();
+    }
+  };
+
   const openReleaseNotes = () => {
     if (updateInfo?.version) {
       window.open(`${GITHUB_REPO_URL}/releases/tag/v${updateInfo.version}`, '_blank');
@@ -255,28 +262,48 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
               </div>
             </div>
           )}
+
+          {status === 'skipped' && updateInfo && (
+            <div className="flex flex-col items-center py-8">
+              <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-gray-900 font-medium">Update skipped</p>
+              <p className="text-gray-500 text-sm mt-1">
+                Version {updateInfo.version} has been skipped. You can check for updates manually later.
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between flex-shrink-0">
           {status === 'available' && (
             <>
               <button
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                onClick={handleSkipVersion}
+                className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
               >
-                Later
+                Skip this version
               </button>
-              <button
-                onClick={handleDownload}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-              >
-                Download Update
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Download Update
+                </button>
+              </div>
             </>
           )}
 
           {status === 'downloaded' && (
-            <>
+            <div className="flex justify-end w-full space-x-3">
               <button
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
@@ -289,17 +316,19 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({ isOpen, onClose }) =
               >
                 Restart & Install
               </button>
-            </>
+            </div>
           )}
 
-          {(status === 'checking' || status === 'not-available' || status === 'error' || status === 'downloading') && (
-            <button
-              onClick={onClose}
-              disabled={status === 'downloading'}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
-            >
-              {status === 'downloading' ? 'Downloading...' : 'Close'}
-            </button>
+          {(status === 'checking' || status === 'not-available' || status === 'error' || status === 'downloading' || status === 'skipped') && (
+            <div className="flex justify-end w-full">
+              <button
+                onClick={onClose}
+                disabled={status === 'downloading'}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+              >
+                {status === 'downloading' ? 'Downloading...' : 'Close'}
+              </button>
+            </div>
           )}
         </div>
 

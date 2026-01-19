@@ -39,4 +39,18 @@ export function registerUpdateHandlers(): void {
   ipcMain.handle('update:is-portable', () => {
     return updateService.getIsPortable();
   });
+
+  ipcMain.handle('update:skip-version', (_event, version: string) => {
+    try {
+      updateService.skipVersion(version);
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('update:get-skipped-version', () => {
+    return updateService.getSkippedVersion();
+  });
 }

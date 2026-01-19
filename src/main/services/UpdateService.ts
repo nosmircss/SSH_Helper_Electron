@@ -5,9 +5,10 @@ import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { ConfigurationService } from './ConfigurationService';
 
 export interface UpdateStatus {
-  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'skipped';
   info?: UpdateInfo;
   progress?: ProgressInfo;
   error?: string;
@@ -31,12 +32,14 @@ export class UpdateService {
   private portableExePath: string | null = null;
   private downloadedUpdatePath: string | null = null;
   private latestReleaseInfo: GitHubRelease | null = null;
+  private configService: ConfigurationService;
 
   // GitHub repo info - should match electron-builder.json
   private readonly githubOwner = 'nosmircss';
   private readonly githubRepo = 'SSH_Helper_Electron';
 
   constructor() {
+    this.configService = new ConfigurationService();
     // Detect if running as portable
     // PORTABLE_EXECUTABLE_DIR is set by electron-builder when running portable exe
     this.isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR;
@@ -64,6 +67,71 @@ export class UpdateService {
 
   setMainWindow(window: BrowserWindow | null): void {
     this.mainWindow = window;
+  }
+
+  /**
+   * Check if updates should be checked on startup based on settings
+   */
+  shouldCheckOnStartup(): boolean {
+    const config = this.configService.load();
+    return config.updateSettings?.checkOnStartup !== false;
+  }
+
+  /**
+   * Get the skipped version from settings
+   */
+  getSkippedVersion(): string | undefined {
+    const config = this.configService.load();
+    return config.updateSettings?.skippedVersion;
+  }
+
+  /**
+   * Skip a specific version
+   */
+  skipVersion(version: string): void {
+    const config = this.configService.load();
+    this.configService.save({
+      updateSettings: {
+        ...config.updateSettings,
+        skippedVersion: version
+      }
+    });
+    log.info('Skipped update version:', version);
+  }
+
+  /**
+   * Clear the skipped version
+   */
+  clearSkippedVersion(): void {
+    const config = this.configService.load();
+    this.configService.save({
+      updateSettings: {
+        ...config.updateSettings,
+        skippedVersion: undefined
+      }
+    });
+    log.info('Cleared skipped version');
+  }
+
+  /**
+   * Check if a version is skipped
+   */
+  isVersionSkipped(version: string): boolean {
+    const skipped = this.getSkippedVersion();
+    return skipped === version;
+  }
+
+  /**
+   * Check for updates on startup if enabled in settings
+   */
+  async checkForUpdatesOnStartup(): Promise<void> {
+    if (!this.shouldCheckOnStartup()) {
+      log.info('Update check on startup is disabled');
+      return;
+    }
+
+    log.info('Checking for updates on startup...');
+    await this.checkForUpdates(true);
   }
 
   private setupEventListeners(): void {
@@ -137,7 +205,7 @@ export class UpdateService {
     }
   }
 
-  async checkForUpdates(): Promise<void> {
+  async checkForUpdates(silent: boolean = false): Promise<void> {
     if (this.isCheckingForUpdates) {
       return;
     }
@@ -145,7 +213,7 @@ export class UpdateService {
     this.isCheckingForUpdates = true;
 
     if (this.isPortable) {
-      await this.checkForPortableUpdates();
+      await this.checkForPortableUpdates(silent);
     } else {
       try {
         await autoUpdater.checkForUpdates();
@@ -156,11 +224,13 @@ export class UpdateService {
     }
   }
 
-  private async checkForPortableUpdates(): Promise<void> {
-    this.sendStatusToRenderer({
-      status: 'checking',
-      isPortable: true
-    });
+  private async checkForPortableUpdates(silent: boolean = false): Promise<void> {
+    if (!silent) {
+      this.sendStatusToRenderer({
+        status: 'checking',
+        isPortable: true
+      });
+    }
 
     try {
       const release = await this.fetchLatestRelease();
@@ -170,6 +240,26 @@ export class UpdateService {
       const latestVersion = release.tag_name.replace(/^v/, '');
 
       log.info(`Portable update check: current=${currentVersion}, latest=${latestVersion}`);
+
+      // Check if this version is skipped
+      if (this.isVersionSkipped(latestVersion)) {
+        log.info(`Version ${latestVersion} is skipped by user`);
+        if (!silent) {
+          this.sendStatusToRenderer({
+            status: 'skipped',
+            info: {
+              version: latestVersion,
+              releaseDate: new Date().toISOString(),
+              files: [],
+              path: '',
+              sha512: ''
+            },
+            isPortable: true
+          });
+        }
+        this.isCheckingForUpdates = false;
+        return;
+      }
 
       if (this.isNewerVersion(latestVersion, currentVersion)) {
         // Find the portable exe in assets
@@ -366,7 +456,7 @@ export class UpdateService {
   private downloadFile(
     url: string,
     destPath: string,
-    totalSize: number,
+    expectedSize: number,
     onProgress: (progress: ProgressInfo) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -402,16 +492,20 @@ export class UpdateService {
             return;
           }
 
+          // Use content-length from final response if available, otherwise use expected size
+          const contentLength = res.headers['content-length'];
+          const totalSize = contentLength ? parseInt(contentLength, 10) : expectedSize;
+
           res.on('data', (chunk: Buffer) => {
             downloadedBytes += chunk.length;
             const elapsedSeconds = (Date.now() - startTime) / 1000;
-            const bytesPerSecond = downloadedBytes / elapsedSeconds;
+            const bytesPerSecond = elapsedSeconds > 0 ? downloadedBytes / elapsedSeconds : 0;
 
             onProgress({
               total: totalSize,
               delta: chunk.length,
               transferred: downloadedBytes,
-              percent: (downloadedBytes / totalSize) * 100,
+              percent: totalSize > 0 ? (downloadedBytes / totalSize) * 100 : 0,
               bytesPerSecond
             });
           });
@@ -473,35 +567,79 @@ export class UpdateService {
 
     // VBS path for cleanup in batch script
     const vbsPath = path.join(app.getPath('temp'), 'ssh-helper-updater.vbs');
+    const logPath = path.join(app.getPath('temp'), 'ssh-helper-upgrade.log');
+    const currentPid = process.pid;
 
     const batchContent = `@echo off
 setlocal
 
-set "OLD_EXE=${oldExePath.replace(/\\/g, '\\\\')}"
-set "NEW_EXE=${newExePath.replace(/\\/g, '\\\\')}"
-set "TARGET=${targetExePath.replace(/\\/g, '\\\\')}"
-set "VBS_FILE=${vbsPath.replace(/\\/g, '\\\\')}"
+set "OLD_EXE=${oldExePath}"
+set "NEW_EXE=${newExePath}"
+set "TARGET=${targetExePath}"
+set "VBS_FILE=${vbsPath}"
+set "LOG_FILE=${logPath}"
+set "APP_PID=${currentPid}"
+
+echo [%date% %time%] Updater started >> "%LOG_FILE%"
+echo OLD_EXE: %OLD_EXE% >> "%LOG_FILE%"
+echo NEW_EXE: %NEW_EXE% >> "%LOG_FILE%"
+echo TARGET: %TARGET% >> "%LOG_FILE%"
+echo APP_PID: %APP_PID% >> "%LOG_FILE%"
 
 :waitloop
+echo [%date% %time%] Waiting for PID %APP_PID% to exit... >> "%LOG_FILE%"
 timeout /t 1 /nobreak >nul
-tasklist /FI "IMAGENAME eq ${path.basename(oldExePath)}" 2>nul | find /I "${path.basename(oldExePath)}" >nul
-if not errorlevel 1 goto waitloop
+tasklist /FI "PID eq %APP_PID%" 2>nul | find "%APP_PID%" >nul
+if %ERRORLEVEL%==0 goto waitloop
 
-del "%OLD_EXE%" >nul 2>&1
+echo [%date% %time%] Process exited, waiting 5 seconds for AV scanners... >> "%LOG_FILE%"
+timeout /t 5 /nobreak >nul
+
+echo [%date% %time%] Attempting to delete old exe... >> "%LOG_FILE%"
+del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
 if exist "%OLD_EXE%" (
-    timeout /t 2 /nobreak >nul
-    del "%OLD_EXE%" >nul 2>&1
+    echo [%date% %time%] Attempt 1 failed, retrying in 5 seconds... >> "%LOG_FILE%"
+    timeout /t 5 /nobreak >nul
+    del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
+)
+if exist "%OLD_EXE%" (
+    echo [%date% %time%] Attempt 2 failed, retrying in 5 seconds... >> "%LOG_FILE%"
+    timeout /t 5 /nobreak >nul
+    del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
+)
+if exist "%OLD_EXE%" (
+    echo [%date% %time%] Attempt 3 failed, retrying in 10 seconds... >> "%LOG_FILE%"
+    timeout /t 10 /nobreak >nul
+    del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
+)
+if exist "%OLD_EXE%" (
+    echo [%date% %time%] Attempt 4 failed, retrying in 10 seconds... >> "%LOG_FILE%"
+    timeout /t 10 /nobreak >nul
+    del /F /Q "%OLD_EXE%" 2>> "%LOG_FILE%"
+)
+if exist "%OLD_EXE%" (
+    echo [%date% %time%] ERROR: Failed to delete old exe after 5 attempts >> "%LOG_FILE%"
+    echo [%date% %time%] Checking what is locking the file... >> "%LOG_FILE%"
+    tasklist /V /FI "IMAGENAME eq MsMpEng.exe" >> "%LOG_FILE%" 2>&1
+) else (
+    echo [%date% %time%] Old exe deleted successfully >> "%LOG_FILE%"
 )
 
+echo [%date% %time%] Copying new exe to target... >> "%LOG_FILE%"
 copy /Y "%NEW_EXE%" "%TARGET%" >nul
 if errorlevel 1 (
+    echo [%date% %time%] ERROR: Copy failed >> "%LOG_FILE%"
     exit /b 1
 )
+echo [%date% %time%] Copy successful >> "%LOG_FILE%"
 
+echo [%date% %time%] Starting new exe... >> "%LOG_FILE%"
 start "" "%TARGET%"
 
+echo [%date% %time%] Cleaning up temp files... >> "%LOG_FILE%"
 del "%NEW_EXE%" >nul 2>&1
 del "%VBS_FILE%" >nul 2>&1
+echo [%date% %time%] Updater complete >> "%LOG_FILE%"
 (goto) 2>nul & del "%~f0"
 `;
 

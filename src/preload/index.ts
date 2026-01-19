@@ -16,7 +16,7 @@ export interface UpdateInfo {
 }
 
 export interface UpdateStatus {
-  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error' | 'skipped';
   info?: UpdateInfo;
   progress?: UpdateProgress;
   error?: string;
@@ -67,6 +67,8 @@ export interface ElectronAPI {
     download: () => Promise<{ success: boolean; error?: string }>;
     install: () => Promise<{ success: boolean; error?: string }>;
     isPortable: () => Promise<boolean>;
+    skipVersion: (version: string) => Promise<{ success: boolean; error?: string }>;
+    getSkippedVersion: () => Promise<string | undefined>;
     onStatus: (callback: (status: UpdateStatus) => void) => () => void;
   };
   file: {
@@ -142,6 +144,8 @@ const api: ElectronAPI = {
     download: () => ipcRenderer.invoke('update:download'),
     install: () => ipcRenderer.invoke('update:install'),
     isPortable: () => ipcRenderer.invoke('update:is-portable'),
+    skipVersion: (version) => ipcRenderer.invoke('update:skip-version', version),
+    getSkippedVersion: () => ipcRenderer.invoke('update:get-skipped-version'),
     onStatus: (callback) => {
       const handler = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status);
       ipcRenderer.on('update-status', handler);
