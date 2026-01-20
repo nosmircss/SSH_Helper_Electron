@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import type { ExecutionStatus } from '../../shared/models';
+import { parseHostAndPort, formatHostAndPort } from '../utils/hostParser';
 
 const PlusIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,14 +103,33 @@ export function HostGrid() {
 
   const startEditing = (hostId: string, column: string, value: string) => {
     setEditingCell({ hostId, column });
-    setEditValue(value);
+    // For Host_IP column, show host:port format if port is not 22
+    if (column === 'Host_IP') {
+      const host = hosts.find(h => h.id === hostId);
+      if (host) {
+        setEditValue(formatHostAndPort(host.ipAddress, host.port));
+      } else {
+        setEditValue(value);
+      }
+    } else {
+      setEditValue(value);
+    }
   };
 
   const finishEditing = () => {
     if (editingCell) {
       const { hostId, column } = editingCell;
       if (column === 'Host_IP') {
-        updateHost(hostId, { ipAddress: editValue, variables: { ...hosts.find(h => h.id === hostId)?.variables, Host_IP: editValue } });
+        // Parse host:port format
+        const parsed = parseHostAndPort(editValue);
+        const host = hosts.find(h => h.id === hostId);
+        if (host) {
+          updateHost(hostId, { 
+            ipAddress: parsed.host, 
+            port: parsed.port,
+            variables: { ...host.variables, Host_IP: parsed.host } 
+          });
+        }
       } else {
         const host = hosts.find(h => h.id === hostId);
         if (host) {
@@ -388,7 +408,11 @@ export function HostGrid() {
                         className="w-full px-1 py-0.5 border border-primary-500 rounded focus:outline-none"
                       />
                     ) : (
-                      <span className="block truncate">{host.variables[col] || ''}</span>
+                      <span className="block truncate">
+                        {col === 'Host_IP' 
+                          ? formatHostAndPort(host.ipAddress, host.port)
+                          : (host.variables[col] || '')}
+                      </span>
                     )}
                   </td>
                 ))}
