@@ -7,6 +7,7 @@ import type {
   ExecutionStatus,
   SerializedOutputEntry,
 } from '../../shared/models';
+import { parseHostAndPort } from '../utils/hostParser';
 
 interface AppState {
   // Config
@@ -194,14 +195,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Host actions
   addHost: (ip, port = 22) => {
     const id = `host-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Parse host:port format if provided
+    const parsed = parseHostAndPort(ip);
+    const finalHost = parsed.host;
+    const finalPort = port !== 22 ? port : parsed.port;
+    
     set((state) => ({
       hosts: [
         ...state.hosts,
         {
           id,
-          ipAddress: ip,
-          port,
-          variables: { Host_IP: ip },
+          ipAddress: finalHost,
+          port: finalPort,
+          variables: { Host_IP: finalHost },
           status: 'idle',
         },
       ],
@@ -274,13 +280,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const { columns, rows } = await window.api.csv.import(filePath);
 
-      const hosts: HostWithStatus[] = rows.map((row, index) => ({
-        id: `host-${Date.now()}-${index}`,
-        ipAddress: row.Host_IP || '',
-        port: 22,
-        variables: row,
-        status: 'idle',
-      }));
+      const hosts: HostWithStatus[] = rows.map((row, index) => {
+        // Parse host:port format from Host_IP if provided
+        const parsed = parseHostAndPort(row.Host_IP || '');
+        return {
+          id: `host-${Date.now()}-${index}`,
+          ipAddress: parsed.host,
+          port: parsed.port,
+          variables: { ...row, Host_IP: parsed.host },
+          status: 'idle',
+        };
+      });
 
       set({ hosts, columns });
     } catch (error) {
