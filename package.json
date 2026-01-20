@@ -1,6 +1,6 @@
 {
   "name": "ssh-helper",
-  "version": "0.49.9",
+  "version": "0.49.10",
   "description": "Cross-platform SSH command execution tool",
   "main": "dist/main/index.js",
   "author": {
