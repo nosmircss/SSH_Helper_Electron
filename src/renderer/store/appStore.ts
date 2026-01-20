@@ -193,12 +193,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Host actions
-  addHost: (ip, port = 22) => {
+  addHost: (ip, port) => {
     const id = `host-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     // Parse host:port format if provided
     const parsed = parseHostAndPort(ip);
     const finalHost = parsed.host;
-    const finalPort = port !== 22 ? port : parsed.port;
+    const finalPort = port !== undefined ? port : parsed.port;
     
     set((state) => ({
       hosts: [
